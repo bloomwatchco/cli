@@ -1,0 +1,37 @@
+{
+  "name": "bloomwatch",
+  "version": "0.1.0",
+  "description": "Terminal client for the BloomWatch API: newly funded startups and their open roles.",
+  "type": "module",
+  "bin": {
+    "bloomwatch": "bw.mjs"
+  },
+  "files": [
+    "bw.mjs",
+    ".env.example"
+  ],
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "test": "node bw.mjs help"
+  },
+  "keywords": [
+    "bloomwatch",
+    "startups",
+    "funding",
+    "jobs",
+    "api",
+    "cli"
+  ],
+  "homepage": "https://github.com/bloomwatchco/cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bloomwatchco/cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bloomwatchco/cli/issues"
+  },
+  "author": "Zager Consulting LLC",
+  "license": "MIT"
+}
