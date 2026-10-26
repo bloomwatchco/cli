@@ -3,7 +3,7 @@
 A small terminal client for the [BloomWatch API](https://bloomwatch.co/help/api): newly funded companies and their open roles. One file, no dependencies.
 
 ```
-$ npx github:bloomwatchco/cli status
+$ bloomwatch status
 ● BloomWatch API  https://bloomwatch.co/api/v1
 
   Last ingest   2026-10-26 00:24 UTC  (5 hr ago)
@@ -13,6 +13,14 @@ $ npx github:bloomwatchco/cli status
 
 119/120 calls this min, 5000/5000 rows today
 ```
+
+## Try it, no key
+
+```bash
+npx bloomwatch sample
+```
+
+Prints 5 real companies from the free tier (first seen at least 7 days ago). Limited to 20 calls an hour.
 
 ## Requirements
 
@@ -30,44 +38,36 @@ $ npx github:bloomwatchco/cli status
 
 You can have 2 active keys at a time, one in use and one for rotating.
 
-### 2. Set the key
+### 2. Install
 
-Export it:
-
-```bash
-export BLOOMWATCH_KEY=bw_live_a1b2c3d4...
-```
-
-Or put it in a `.env` file in the folder you run the CLI from (or next to `bw.mjs` in a clone):
+From npm:
 
 ```bash
-cp .env.example .env   # then replace the placeholder with your key
+npm install -g bloomwatch
 ```
 
-An exported key wins over `.env`. `.env` is gitignored, so the key stays on your machine.
-
-### 3. Run it
-
-No install, straight from GitHub:
+Or without npm, straight from this repo:
 
 ```bash
 npx github:bloomwatchco/cli status
 ```
 
-Or clone it:
+Or clone it (then use `node bw.mjs` in place of `bloomwatch`):
 
 ```bash
 git clone https://github.com/bloomwatchco/cli bloomwatch-cli
 cd bloomwatch-cli
-node bw.mjs status
 ```
 
-Or install the `bloomwatch` command globally:
+### 3. Set the key
 
 ```bash
-npm install -g github:bloomwatchco/cli
+mkdir -p ~/.config/bloomwatch
+echo "BLOOMWATCH_KEY=bw_live_a1b2c3d4..." > ~/.config/bloomwatch/.env
 bloomwatch status
 ```
+
+The key is read from `BLOOMWATCH_KEY` first, then `.env` next to `bw.mjs` (in a clone: `cp .env.example .env`), then `~/.config/bloomwatch/.env`. `.env` is gitignored, so the key stays on your machine.
 
 You should see the last ingest time and the counts above. A `401` means the key is missing or wrong (see [Errors](#errors)).
 
@@ -77,16 +77,17 @@ You should see the last ingest time and the counts above. A `401` means the key 
 bloomwatch <command> [options]
 ```
 
-The examples below use `bloomwatch`. Swap in `npx github:bloomwatchco/cli` or `node bw.mjs` to match how you run it.
+The examples below use `bloomwatch`. Swap in `npx bloomwatch` or `node bw.mjs` to match how you run it.
 
 | Command | What it shows |
 |---|---|
-| `status` | Last ingest time, company, job, and source counts. The default when no command is given. |
+| `sample` | 5 companies at least 7 days old. No key needed. |
+| `status` | Last ingest time, company, job, and source counts. The default when a key is set. |
+| `help` | Commands and options. The default without a key. |
 | `companies` | Funded companies, newest round first |
 | `jobs` | Open roles, newest first, with each company's round |
 | `company <id>` | One company in detail |
 | `job <id>` | One role in detail |
-| `help` | Commands and options |
 
 | Option | Meaning |
 |---|---|
@@ -150,7 +151,7 @@ Errors print the status, a code, and a message, and exit with 1.
 
 | Status | Code | Fix |
 |---:|---|---|
-| | `No key.` | Printed before any call when no key is set. Run step 2 of [Install](#install). |
+| | `No key.` | Printed before any call when no key is set. Run step 3 of [Install](#install). |
 | 401 | `missing_key` | The request went out without a key (curl or your own code). |
 | 401 | `invalid_key` | Key is wrong. Copy it again, or create a new one. |
 | 401 | `revoked_key` | Key was revoked on Settings. Create a new one. |
@@ -158,6 +159,7 @@ Errors print the status, a code, and a message, and exit with 1.
 | 404 | `not_found` | No company or job with this id. |
 | 429 | `rate_limited` | Over 120 calls a minute. Wait a minute. |
 | 429 | `daily_cap` | Over 5,000 rows a day. The message names the reset time. |
+| 429 | `rate_limited` (sample) | Over 20 `sample` calls an hour from one address. Get a key, or wait. |
 
 ## Limits
 
@@ -167,6 +169,7 @@ Errors print the status, a code, and a message, and exit with 1.
 
 ## More
 
+- Developers: https://bloomwatch.co/developers
 - Full API docs: https://bloomwatch.co/help/api
 - OpenAPI spec: https://bloomwatch.co/api/v1/openapi.json
 - Issues and requests: https://github.com/bloomwatchco/cli/issues

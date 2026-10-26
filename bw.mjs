@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Terminal client for the BloomWatch API (https://bloomwatch.co/help/api). No dependencies, Node 20.12+.
-// Key comes from BLOOMWATCH_KEY, or a .env in the current folder, or a .env next to this file.
+// Key comes from BLOOMWATCH_KEY, .env next to this file, or ~/.config/bloomwatch/.env.
 //
+//   bloomwatch sample                 (no key)
 //   bloomwatch status
 //   bloomwatch companies [--days 7] [--jobs] [--limit 20] [round=Seed location=Austin]
 //   bloomwatch jobs [--days 3] [--limit 20] [companyId=...]
@@ -10,12 +11,15 @@
 //   add --json to any command for the raw response
 
 import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { homedir } from "node:os";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-for (const envFile of [join(process.cwd(), ".env"), join(dirname(fileURLToPath(import.meta.url)), ".env")]) {
+for (const envFile of [join(dirname(fileURLToPath(import.meta.url)), ".env"), join(homedir(), ".config", "bloomwatch", ".env")]) {
   if (!process.env.BLOOMWATCH_KEY && existsSync(envFile)) process.loadEnvFile(envFile);
 }
+// How to run this again, for hints: the repo file or the npm bin.
+const RUN = basename(process.argv[1] ?? "") === "bw.mjs" ? "node bw.mjs" : "bloomwatch";
 
 const KEY = process.env.BLOOMWATCH_KEY;
 const BASE = (process.env.BLOOMWATCH_URL || "https://bloomwatch.co").replace(/\/$/, "") + "/api/v1";
@@ -71,7 +75,7 @@ function table(rows, cols) {
 async function get(path, params = {}) {
   const url = new URL(BASE + path);
   for (const [k, v] of Object.entries(params)) if (v !== undefined) url.searchParams.set(k, v);
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${KEY}` } });
+  const res = await fetch(url, KEY ? { headers: { Authorization: `Bearer ${KEY}` } } : {});
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     console.error(red(`${res.status} ${body.code ?? "error"}`) + `  ${body.error ?? res.statusText}`);
@@ -87,7 +91,41 @@ function footer({ body, limits }) {
   console.log(dim(limits));
 }
 
+const COMPANY_COLS = [
+  { label: "Raised", get: (c) => day(c.roundCloseDate), right: true },
+  { label: "Company", get: (c) => c.name, max: 24 },
+  { label: "Round", get: (c) => c.fundingRound, max: 12 },
+  { label: "Amount", get: (c) => money(c.roundAmount, c.roundCurrency), right: true },
+  { label: "Jobs", get: (c) => c.openJobCount, right: true },
+  { label: "HQ", get: (c) => c.locationHq, max: 18 },
+  { label: "Industry", get: (c) => c.industry, max: 20 },
+  { label: "Id", get: (c) => c.id, max: 25 },
+];
+
+// Commands that work without a key.
+const KEYLESS = new Set(["sample", "help"]);
+
 const commands = {
+  // v03.01.13: GET /sample, no key: 5 companies at least 7 days old.
+  async sample() {
+    const r = await get("/sample");
+    if (json) return console.log(JSON.stringify(r.body, null, 2));
+    table(r.body.data, COMPANY_COLS);
+    console.log(dim(`\nSample: ${r.body.data.length} companies first seen at least 7 days ago.`));
+    console.log(`Same-day data, filters, and jobs need a key: ${cyan("https://bloomwatch.co/developers")}`);
+  },
+
+  help() {
+    console.log(`${bold("bloomwatch")}  newly funded companies and their open roles\n`);
+    console.log(`  ${RUN} sample                  5 companies, no key needed`);
+    console.log(`  ${RUN} status                  freshness and coverage`);
+    console.log(`  ${RUN} companies [--days 7] [--jobs] [--limit 20] [round=Seed location=Austin]`);
+    console.log(`  ${RUN} jobs [--days 3] [--limit 20] [companyId=...]`);
+    console.log(`  ${RUN} company <id>  |  job <id>`);
+    console.log(dim(`\n  --json on any command prints the raw response. Key: BLOOMWATCH_KEY or ~/.config/bloomwatch/.env`));
+    console.log(dim(`  Docs: https://bloomwatch.co/help/api and https://github.com/bloomwatchco/cli`));
+  },
+
   async status() {
     const r = await get("/status");
     const s = r.body;
@@ -103,16 +141,7 @@ const commands = {
   async companies() {
     const r = await get("/companies", { limit: flags.limit ?? 20, fundedWithinDays: flags.days, hasJobs: flags.jobs ? "true" : undefined, ...params });
     if (json) return console.log(JSON.stringify(r.body, null, 2));
-    table(r.body.data, [
-      { label: "Raised", get: (c) => day(c.roundCloseDate), right: true },
-      { label: "Company", get: (c) => c.name, max: 24 },
-      { label: "Round", get: (c) => c.fundingRound, max: 12 },
-      { label: "Amount", get: (c) => money(c.roundAmount, c.roundCurrency), right: true },
-      { label: "Jobs", get: (c) => c.openJobCount, right: true },
-      { label: "HQ", get: (c) => c.locationHq, max: 18 },
-      { label: "Industry", get: (c) => c.industry, max: 20 },
-      { label: "Id", get: (c) => c.id, max: 25 },
-    ]);
+    table(r.body.data, COMPANY_COLS);
     footer(r);
   },
 
@@ -149,7 +178,7 @@ const commands = {
       ["First seen", day(c.firstSeenAt)],
     ];
     for (const [k, v] of rows) if (v !== null && v !== "") console.log(`  ${dim(k.padEnd(11))}${v}`);
-    if (c.openJobCount) console.log(dim(`\n  bloomwatch jobs companyId=${c.id}`));
+    if (c.openJobCount) console.log(dim(`\n  ${RUN} jobs companyId=${c.id}`));
   },
 
   async job() {
@@ -164,14 +193,14 @@ const commands = {
 
 function need(what) {
   if (!positional[0]) {
-    console.error(`usage: bloomwatch ${what} <id>`);
+    console.error(`usage: ${RUN} ${what} <id>`);
     process.exit(1);
   }
   return positional[0];
 }
 
 // Parse: command, --flags, key=value API params, positional ids.
-const [cmd = "status", ...rest] = process.argv.slice(2);
+const [cmd = KEY ? "status" : "help", ...rest] = process.argv.slice(2);
 const flags = {}, params = {}, positional = [];
 for (let i = 0; i < rest.length; i++) {
   const a = rest[i];
@@ -182,30 +211,13 @@ for (let i = 0; i < rest.length; i++) {
 }
 const json = !!flags.json;
 
-if (cmd === "help" || cmd === "--help" || cmd === "-h") {
-  console.log(`bloomwatch <command> [options]
-
-  status              last ingest time and counts (default)
-  companies           funded companies, newest round first
-  jobs                open roles, newest first
-  company <id>        one company in detail
-  job <id>            one role in detail
-
-  --days N            companies raised, or jobs posted, in the last N days
-  --jobs              companies with open roles only
-  --limit N           rows per page, default 20, max 200
-  --json              raw API response
-  key=value           any other API parameter (round=Seed, offset=20, companyId=...)
-
-Docs: https://github.com/bloomwatchco/cli and https://bloomwatch.co/help/api`);
-  process.exit(0);
-}
 if (!commands[cmd]) {
   console.error(`unknown command "${cmd}". Commands: ${Object.keys(commands).join(", ")}`);
   process.exit(1);
 }
-if (!KEY || KEY === "bw_live_your_key_here") {
-  console.error(red("No key.") + ` Run: export BLOOMWATCH_KEY=bw_live_... (key from https://bloomwatch.co/settings#api-keys, see https://github.com/bloomwatchco/cli)`);
+if (!KEYLESS.has(cmd) && (!KEY || KEY === "bw_live_your_key_here")) {
+  console.error(red("No key.") + ` Set BLOOMWATCH_KEY, or put BLOOMWATCH_KEY=... in ~/.config/bloomwatch/.env. Keys: https://bloomwatch.co/settings#api-keys`);
+  console.error(dim(`Try it without a key: ${RUN} sample`));
   process.exit(1);
 }
 await commands[cmd]();
