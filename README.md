@@ -17,7 +17,7 @@ $ bloomwatch status
 ## Try it, no key
 
 ```bash
-npx bloomwatch sample
+npx github:bloomwatchco/cli sample
 ```
 
 Prints 5 real companies from the free tier (first seen at least 7 days ago). Limited to 20 calls an hour.
@@ -40,13 +40,13 @@ You can have 2 active keys at a time, one in use and one for rotating.
 
 ### 2. Install
 
-From npm:
+Install the `bloomwatch` command:
 
 ```bash
-npm install -g bloomwatch
+npm install -g github:bloomwatchco/cli
 ```
 
-Or without npm, straight from this repo:
+Or run it without installing:
 
 ```bash
 npx github:bloomwatchco/cli status
@@ -77,7 +77,7 @@ You should see the last ingest time and the counts above. A `401` means the key 
 bloomwatch <command> [options]
 ```
 
-The examples below use `bloomwatch`. Swap in `npx bloomwatch` or `node bw.mjs` to match how you run it.
+The examples below use `bloomwatch`. Swap in `npx github:bloomwatchco/cli` or `node bw.mjs` to match how you run it.
 
 | Command | What it shows |
 |---|---|
