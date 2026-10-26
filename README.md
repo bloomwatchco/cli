@@ -24,7 +24,7 @@ Prints 5 real companies from the free tier (first seen at least 7 days ago). Lim
 
 ## Requirements
 
-- Node.js 20.12 or newer (`node -v`). Nothing to `npm install`.
+- Node.js 20.12 or newer (`node -v`). No dependencies.
 - A BloomWatch API key. Keys come with the API plan ($99/mo, https://bloomwatch.co/pricing).
 
 ## Install
@@ -44,6 +44,12 @@ Install the `bloomwatch` command:
 
 ```bash
 npm install -g github:bloomwatchco/cli
+```
+
+Pin a release:
+
+```bash
+npm install -g github:bloomwatchco/cli#v0.1.0
 ```
 
 Or run it without installing:
