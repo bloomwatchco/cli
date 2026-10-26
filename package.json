@@ -1,6 +1,6 @@
 {
   "name": "bloomwatch",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Newly funded startups and their open roles from the BloomWatch API, in your terminal. Try it with no key: npx bloomwatch sample",
   "type": "module",
   "bin": {
